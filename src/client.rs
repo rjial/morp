@@ -34,7 +34,7 @@ impl Client {
                 Command::new(&current_exe)
                     .arg("--server")
                     .spawn()
-                    .map_err(|e| format!("Failed to spawn mocp server: {}", e))?;
+                    .map_err(|e| format!("Failed to spawn morp server: {}", e))?;
 
                 // Wait for socket to become available (up to 2.5 seconds)
                 let start = std::time::Instant::now();
@@ -45,7 +45,7 @@ impl Client {
                     }
                 }
 
-                Err("Timed out waiting for mocp server to start".to_string())
+                Err("Timed out waiting for morp server to start".to_string())
             }
         }
     }

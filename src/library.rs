@@ -88,12 +88,12 @@ impl Library {
     }
 
     pub fn get_cache_path() -> PathBuf {
-        if let Ok(moc_dir) = std::env::var("MOC_DIR") {
-            PathBuf::from(moc_dir).join("library_cache.json")
+        if let Ok(morp_dir) = std::env::var("MORP_DIR") {
+            PathBuf::from(morp_dir).join("library_cache.json")
         } else if let Some(home) = dirs::home_dir() {
-            home.join(".moc").join("library_cache.json")
+            home.join(".morp").join("library_cache.json")
         } else {
-            PathBuf::from("/tmp/moc_library_cache.json")
+            PathBuf::from("/tmp/morp_library_cache.json")
         }
     }
 

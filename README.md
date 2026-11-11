@@ -1,226 +1,300 @@
-# mocp (Music On Console Player) - Rust Rewrite
+# morp (Music On Rust Player)
 
-Sebuah penulisan ulang (rewrite) modern dari **MOC** (Music On Console - `mocp`) ke dalam bahasa pemrograman **Rust**.
+A modern rewrite of the classic **mocp** (Music On Console Player) in **Rust**.
 
-Proyek ini mempertahankan arsitektur **Client-Server daemon** klasik khas MOC, antarmuka visual TUI split-pane (Directory Browser & Playlist), serta antarmuka baris perintah (CLI) yang kompatibel 100% dengan skrip status bar (seperti Polybar, Waybar, i3blocks, tmux, dan conky).
+The project preserves the classic **client-server daemon** architecture, TUI split-pane interface (Directory Browser & Playlist), and a CLI fully compatible with status bar scripts (Polybar, Waybar, i3blocks, tmux, conky, etc.).
 
 ---
 
-## ✨ Fitur Utama
+## ✨ Features
 
-- **Integrasi Sistem Desktop (MPRIS & Notifikasi, Fitur Baru!)**:
-  - Mendaftarkan diri sebagai service **MPRIS** (`org.mpris.MediaPlayer2.mocp`) di DBus session Anda.
-  - Tombol multimedia keyboard (Play/Pause/Next/Prev/Seek) akan otomatis berfungsi secara global, tanpa konfigurasi tambahan.
-  - Status lagu, metadata, dan progress bar otomatis muncul di panel sistem desktop manapun yang mendukung MPRIS (GNOME Shell, KDE Plasma, Waybar, i3status-rust, dll).
-  - Mengirimkan **notifikasi desktop** (toast) otomatis setiap kali lagu berganti, lengkap dengan judul dan artis.
+- **Desktop Integration (MPRIS & Notifications)**:
+  - Registers as an **MPRIS** service (`org.mpris.MediaPlayer2.morp`) on the DBus session.
+  - Multimedia keyboard buttons (Play/Pause/Next/Prev/Seek) work globally out of the box, no extra configuration needed.
+  - Song status, metadata, and progress bar appear automatically in any desktop panel that supports MPRIS (GNOME Shell, KDE Plasma, Waybar, i3status-rust, etc.).
+  - Sends **desktop notifications** (toast) automatically on every track change, with title and artist.
 - **Music Library Explorer**:
-  - Pengindeksan koleksi musik dari direktori musik (`~/Music` atau parameter `--music-dir`).
-  - **Tampilan 3 Kolom**: **Artists** $\rightarrow$ **Albums** $\rightarrow$ **Tracks**.
-  - **Fuzzy Search & Filter (`/`, Ditingkatkan!)**: Cari lagu, artis, atau album secara instan dengan algoritma *fuzzy matching* (mirip VS Code/fzf) — ketik "rdhead okc" tetap menemukan "Radiohead - OK Computer" walau tidak berurutan/lengkap.
-  - **Caching Otomatis**: Menyimpan cache indeks perpustakaan (`~/.moc/library_cache.json`) sehingga aplikasi terbuka seketika tanpa perlu scan ulang setiap kali dibuka.
-  - **Rescan Instan (`u` atau `F5`)**: Memperbarui indeks perpustakaan dari piringan/disk kapan saja.
-- **Lirik Tersinkron Real-time (Fitur Baru!)**:
-  - Tekan `L` untuk menampilkan lirik lagu yang sedang diputar, tersinkron otomatis dengan posisi waktu pemutaran.
-  - Mendukung format standar `.lrc` (contoh: `lagu.mp3` berpasangan dengan `lagu.lrc` di folder yang sama).
-  - Baris yang sedang dinyanyikan akan otomatis disorot dan scroll-tracking mengikuti waktu lagu.
-  - Lihat `example.lrc` di root proyek untuk contoh format.
-- **Dukungan Mouse Penuh & Tema Kustom (Fitur Baru!)**:
-  - **Mouse**: Klik untuk pindah tab/kolom/baris, scroll wheel untuk navigasi daftar atau volume, klik progress bar untuk melompat (*seek*) ke posisi tertentu di lagu.
-  - **Tema Kustom**: Salin `theme.example.toml` ke `~/.moc/theme.toml` untuk mengubah seluruh skema warna TUI (border, teks, highlight, progress bar) tanpa perlu kompilasi ulang. Mendukung nama warna, hex (`#ff5733`), dan format `rgb(r, g, b)`.
-- **Sistem Multi-View TUI**:
-  - **View 1 (`1` atau `F1`)**: **Library** (Koleksi Artis, Album, dan Lagu).
-  - **View 2 (`2` atau `F2`)**: **Files** (File Manager & Playlist ganda klasik MOC).
-  - **View 3 (`3` atau `F3`)**: **Playlist Queue** (Daftar antrean pemutaran lagu).
-- **Arsitektur Client-Server Daemon**:
-  - Server audio berjalan di latar belakang (daemon) dan berkomunikasi via Unix Domain Socket (`~/.moc/socket`).
-  - Menutup antarmuka TUI dengan tombol `q` tidak akan mematikan musik (detach mode). Anda dapat membuka kembali kapan saja dengan menjalankan `mocp`.
-  - Keluar dan mematikan server secara menyeluruh cukup dengan menekan tombol `Q` atau `mocp -x`.
-- **Dukungan Audio & Decoding Modern**:
-  - Ditenagai oleh **Symphonia** (pure Rust) dan **CPAL**: mendukung berbagai format audio populer seperti MP3, FLAC, WAV, OGG/Vorbis, M4A, AAC, ALAC, dsb.
-  - Ekstraksi metadata ID3v1, ID3v2, Vorbis Comments, durasi, sample rate, bitrate, dan channel.
-  - Linear resampling & multi-channel remixing otomatis.
-- **Antarmuka Terminal Interaktif (TUI)**:
-  - Dibuat menggunakan **Ratatui** dan **Crossterm**.
-  - Tampilan panel ganda (Left: File/Directory Browser, Right: Playlist).
-  - Navigasi mulus, penambahan lagu/folder rekursif, penghapusan, dan pencarian direktori.
-  - Panel status lengkap: visual playback state (`PLAY`, `PAUSE`, `STOP`), progress bar waktu lagu, volume level bar, serta toggle control (`[SHUFFLE]`, `[REPEAT]`, `[AUTONEXT]`).
-  - Menu bantuan popup interaktif (`?` atau `h`).
-- **Kompatibilitas CLI `mocp`**:
-  - Perintah kontrol instan seperti `mocp -p` (play), `mocp -P` (pause), `mocp -G` (toggle pause), `mocp -s` (stop), `mocp -f` (next), `mocp -r` (prev).
-  - Dukungan format info penuh `mocp -i` dan formatted string `mocp -Q <FORMAT>`.
-  - Penyesuaian volume `mocp -v +5` / `mocp -v -5` / `mocp -v 80`.
-  - Seeking `mocp -k +10` / `mocp -k -10` dan jump `mocp -j 50%` / `mocp -j 120s`.
+  - Indexes your music collection from a music directory (`~/Music` or `--music-dir`).
+  - **3-Column View**: **Artists** → **Albums** → **Tracks**.
+  - **Fuzzy Search & Filter (`/`)**: Search songs, artists, or albums instantly with fuzzy matching (like VS Code/fzf) — typing "rdhead okc" still finds "Radiohead - OK Computer".
+  - **Auto-caching**: Saves a library index cache (`~/.morp/library_cache.json`) so the app opens instantly without rescanning on every launch.
+  - **Instant Rescan (`u` or `F5`)**: Refresh the library index from disk at any time.
+- **Real-time Synced Lyrics**:
+  - Press `L` to display synced lyrics for the currently playing song, automatically synchronized to the playback position.
+  - Supports the standard `.lrc` format (e.g., `song.mp3` paired with `song.lrc` in the same folder).
+  - The active line is highlighted and auto-scrolls to follow the song in real time.
+  - See `example.lrc` in the project root for the LRC format example.
+- **Full Mouse Support & Custom Themes**:
+  - **Mouse**: Click to switch tabs/columns/rows, scroll wheel to navigate lists or adjust volume, click the progress bar to seek to any position.
+  - **Custom Themes**: Copy `theme.example.toml` to `~/.morp/theme.toml` to change the entire TUI color scheme (borders, text, highlights, progress bar) without recompiling. Supports color names, hex (`#ff5733`), and `rgb(r, g, b)` format.
+- **Multi-View TUI**:
+  - **View 1 (`1` or `F1`)**: **Library** (Artists, Albums, and Tracks collection).
+  - **View 2 (`2` or `F2`)**: **Files** (File Manager & Playlist split-pane, classic mocp layout).
+  - **View 3 (`3` or `F3`)**: **Playlist Queue** (full playback queue).
+- **Client-Server Daemon Architecture**:
+  - The audio server runs in the background (daemon) and communicates via Unix Domain Socket (`~/.morp/socket`).
+  - Closing the TUI with `q` does not stop the music (detach mode). Reopen it at any time by running `morp`.
+  - Fully quit and shut down the server with `Q` or `morp -x`.
+- **Modern Audio Decoding**:
+  - Powered by **Symphonia** (pure Rust) and **CPAL**: supports MP3, FLAC, WAV, OGG/Vorbis, M4A, AAC, ALAC, and more.
+  - Extracts ID3v1, ID3v2, Vorbis Comments metadata, duration, sample rate, bitrate, and channel info.
+  - Automatic linear resampling & multi-channel remixing.
+- **Interactive Terminal UI (TUI)**:
+  - Built with **Ratatui** and **Crossterm**.
+  - Dual-panel layout (Left: File/Directory Browser, Right: Playlist).
+  - Smooth navigation, recursive directory/folder adding, deletion, and directory search.
+  - Full status panel: visual playback state (`PLAY`, `PAUSE`, `STOP`), song progress bar, volume bar, and toggle controls (`[SHUFFLE]`, `[REPEAT]`, `[AUTONEXT]`).
+  - Interactive popup help menu (`?` or `h`).
+- **Last.fm / Libre.fm Scrobbling**:
+  - Automatically submits played tracks to **Last.fm** or **Libre.fm** per Audioscrobbler 2.0 rules (submitted after 50% of duration or 4 minutes, minimum 30 seconds track length).
+  - Browser-based authentication (web auth flow + polling) — no username/password stored in the app.
+  - API key can be embedded at compile time (`LASTFM_API_KEY=xxx cargo build --release`) so binary users need no manual configuration.
+  - Use `morp --lastfm-auth` or `morp --librefm-auth` to authenticate.
+- **Localization (i18n)**:
+  - TUI interface, status messages, and CLI output available in **English** and **Bahasa Indonesia**.
+  - Auto-detects language from `MORP_LANG` or the system `LANG` environment variable.
+  - Easy to add new languages by creating a YAML file in the `locales/` directory.
+- **Full CLI Compatibility**:
+  - Instant control commands: `morp -p` (play), `morp -P` (pause), `morp -G` (toggle pause), `morp -s` (stop), `morp -f` (next), `morp -r` (prev).
+  - Full info output `morp -i` and formatted string `morp -Q <FORMAT>`.
+  - Volume adjustment: `morp -v +5` / `morp -v -5` / `morp -v 80`.
+  - Seeking: `morp -k +10` / `morp -k -10` and jump `morp -j 50%` / `morp -j 120s`.
 
 ---
 
-## 🛠️ Kompilasi & Instalasi
+## 🛠️ Build & Installation
 
-Pastikan Anda memiliki Rust compiler dan Cargo terpasang di sistem Linux Anda.
+Requires Rust and Cargo installed on a Linux system.
 
 ```bash
-# Clone atau masuk ke direktori proyek
+# Enter the project directory
 cd rewrite-mocp
 
-# Build versi release
+# Build release binary
 cargo build --release
 
-# Binary hasil kompilasi akan berada di:
-./target/release/mocp
+# Binary will be at:
+./target/release/morp
 
-# (Opsional) Salin binary ke PATH sistem
-sudo cp ./target/release/mocp /usr/local/bin/mocp
+# (Optional) Install to system PATH
+sudo cp ./target/release/morp /usr/local/bin/morp
 ```
 
 ---
 
-## ⌨️ Pintasan Tombol TUI (Keybindings)
+## ⌨️ TUI Keybindings
 
-| Tombol | Aksi |
+| Key | Action |
 |---|---|
-| `1` / `F1` | Buka Tampilan **Library** (Artis, Album, Lagu) |
-| `2` / `F2` | Buka Tampilan **Files** (File Manager & Playlist split) |
-| `3` / `F3` | Buka Tampilan **Playlist Queue** penuh |
-| `L` | Tampilkan/sembunyikan **Lirik tersinkron** (`.lrc`) dari lagu yang sedang diputar |
-| `Tab` | Pindah kolom (**Artists** $\leftrightarrow$ **Albums** $\leftrightarrow$ **Tracks**) atau panel |
-| `/` | Cari / Filter lagu di Library secara interaktif dengan **Fuzzy Search** |
-| `u` / `F5` | Pindai ulang (*Rescan*) folder Music Library |
-| **Mouse Klik** | Pilih tab, item daftar, atau lompat ke posisi di progress bar |
-| **Mouse Scroll** | Navigasi daftar yang sedang fokus, atau atur volume jika kursor di luar daftar |
-| `Enter` | Putar lagu, album, artis, atau file yang dipilih |
+| `1` / `F1` | Switch to **Library** view (Artists, Albums, Tracks) |
+| `2` / `F2` | Switch to **Files** view (File Manager & Playlist split) |
+| `3` / `F3` | Switch to full **Playlist Queue** view |
+| `L` | Toggle **synced Lyrics** view (`.lrc` sidecar file) |
+| `Tab` | Switch column (**Artists** ↔ **Albums** ↔ **Tracks**) or panel |
+| `/` | Fuzzy Search / Filter tracks in Library |
+| `u` / `F5` | Rescan Music Library from disk |
+| **Mouse Click** | Select tab, list item, or seek via progress bar click |
+| **Mouse Scroll** | Navigate focused list, or adjust volume when outside a list |
+| `Enter` | Play selected track, album, artist, or file |
 | `Space` | Toggle Pause / Unpause |
-| `s` | Stop pemutaran lagu |
-| `n` / `>` | Lagu berikutnya (Next) |
-| `b` / `<` | Lagu sebelumnya (Previous) |
-| `Left` / `,` | Mundur 5 detik (Seek backward) |
-| `Right` / `.` | Maju 5 detik (Seek forward) |
-| `[` / `]` | Mundur / Maju 15 detik |
-| `+` / `-` | Naikkan / Turunkan volume |
-| `a` | Tambahkan item/album/artis/folder yang dipilih ke playlist |
-| `d` / `Delete` | Hapus lagu dari playlist |
-| `C` | Bersihkan (Clear) seluruh playlist |
+| `s` | Stop playback |
+| `n` / `>` | Next track |
+| `b` / `<` | Previous track |
+| `Left` / `,` | Seek backward 5s |
+| `Right` / `.` | Seek forward 5s |
+| `[` / `]` | Seek backward / forward 15s |
+| `+` / `-` | Volume Up / Down |
+| `a` | Add selected item/album/artist/folder to playlist |
+| `d` / `Delete` | Remove track from playlist |
+| `C` | Clear entire playlist |
 | `S` | Toggle Shuffle |
 | `R` | Toggle Repeat |
 | `X` | Toggle AutoNext |
-| `q` | Detach TUI (server musik tetap berjalan di latar belakang) |
-| `Q` | Matikan server dan keluar dari TUI |
-| `?` / `h` | Buka menu bantuan shortcuts |
+| `q` | Detach TUI (music server keeps playing in the background) |
+| `Q` | Shutdown server and quit |
+| `?` / `h` | Open keyboard shortcuts help |
 
 ---
 
-## 💻 Penggunaan Baris Perintah (CLI Commands)
+## 💻 CLI Commands
 
-Anda dapat mengontrol pemutaran musik dari terminal lain, skrip bash, atau keyboard shortcut sistem (misal di i3, Sway, Hyprland, bspwm):
+Control playback from another terminal, a bash script, or system keyboard shortcuts (i3, Sway, Hyprland, bspwm, etc.):
 
 ```bash
-# Buka antarmuka TUI interaktif
-mocp
+# Open interactive TUI
+morp
 
-# Putar file atau folder audio langsung
-mocp /path/to/song.mp3
-mocp /path/to/Music/
+# Play an audio file or directory directly
+morp /path/to/song.mp3
+morp /path/to/Music/
 
-# Tambahkan lagu atau folder ke playlist di background
-mocp -a /path/to/Music/
+# Add a song or folder to the playlist in the background
+morp -a /path/to/Music/
 
-# Kontrol pemutaran
-mocp -p            # Play
-mocp -P            # Pause
-mocp -U            # Unpause
-mocp -G            # Toggle Pause
-mocp -s            # Stop
-mocp -f            # Next track
-mocp -r            # Previous track
+# Playback control
+morp -p            # Play
+morp -P            # Pause
+morp -U            # Unpause
+morp -G            # Toggle Pause
+morp -s            # Stop
+morp -f            # Next track
+morp -r            # Previous track
 
-# Atur volume
-mocp -v +5         # Naikkan volume 5%
-mocp -v -5         # Turunkan volume 5%
-mocp -v 70         # Set volume ke 70%
+# Volume
+morp -v +5         # Volume up 5%
+morp -v -5         # Volume down 5%
+morp -v 70         # Set volume to 70%
 
-# Seeking / Jump
-mocp -k +10        # Maju 10 detik
-mocp -k -10        # Mundur 10 detik
-mocp -j 50%        # Lompat ke menit 50% durasi lagu
-mocp -j 60s        # Lompat ke detik ke-60
+# Seek / Jump
+morp -k +10        # Seek forward 10s
+morp -k -10        # Seek backward 10s
+morp -j 50%        # Jump to 50% of track duration
+morp -j 60s        # Jump to second 60
 
-# Informasi lagu (kompatibel dengan polybar, waybar, dsb.)
-mocp -i
+# Song info (compatible with polybar, waybar, etc.)
+morp -i
 
-# Format kustom
-mocp -Q "%artist - %song [%tt]"
+# Custom format output
+morp -Q "%artist - %song [%tt]"
 
-# Matikan server daemon
-mocp -x
+# Shut down the daemon server
+morp -x
 ```
 
 ---
 
-## 🖥️ Integrasi Desktop (MPRIS & Notifikasi)
+## 🖥️ Desktop Integration (MPRIS & Notifications)
 
-Saat server `mocp` berjalan, ia otomatis terdaftar di DBus session sebagai `org.mpris.MediaPlayer2.mocp`. Anda bisa memverifikasinya dengan `playerctl` atau `busctl`:
+When the `morp` server is running, it automatically registers on the DBus session as `org.mpris.MediaPlayer2.morp`. Verify with `playerctl` or `busctl`:
 
 ```bash
-# Menggunakan playerctl (jika terpasang)
-playerctl -p mocp status
-playerctl -p mocp metadata
-playerctl -p mocp play-pause
+# Using playerctl (if installed)
+playerctl -p morp status
+playerctl -p morp metadata
+playerctl -p morp play-pause
 
-# Menggunakan busctl langsung
-busctl --user get-property org.mpris.MediaPlayer2.org.mpris.MediaPlayer2.mocp \
+# Using busctl directly
+busctl --user get-property org.mpris.MediaPlayer2.org.mpris.MediaPlayer2.morp \
   /org/mpris/MediaPlayer2 org.mpris.MediaPlayer2.Player PlaybackStatus
 ```
 
-Dengan ini, tombol multimedia keyboard (Play/Pause/Next/Prev) pada laptop/keyboard Anda akan otomatis mengontrol `mocp` tanpa perlu binding manual, selama desktop environment (GNOME/KDE/Waybar/dll) mendukung MPRIS. Notifikasi desktop juga akan muncul otomatis setiap kali lagu berganti.
+Multimedia keyboard buttons (Play/Pause/Next/Prev) will automatically control `morp` with no manual binding required, as long as your desktop environment (GNOME/KDE/Waybar/etc.) supports MPRIS. Desktop notifications appear automatically on every track change.
 
 ---
 
-## 🎤 Lirik Tersinkron (`.lrc`)
+## 🎤 Synced Lyrics (`.lrc`)
 
-Untuk menampilkan lirik, cukup letakkan file `.lrc` dengan nama yang sama persis dengan file lagu di folder yang sama:
+To display lyrics, place a `.lrc` file with the exact same name as the song file in the same folder:
 
 ```text
 Music/
 ├── Radiohead/
 │   ├── OK Computer/
 │   │   ├── 01 - Airbag.mp3
-│   │   └── 01 - Airbag.lrc   <-- otomatis terdeteksi
+│   │   └── 01 - Airbag.lrc   <-- auto-detected
 ```
 
-Tekan `L` di TUI untuk membuka tampilan lirik. Baris yang sedang dinyanyikan akan otomatis disorot hijau dan mengikuti posisi waktu pemutaran secara real-time. Lihat `example.lrc` di root proyek untuk contoh format standar LRC (`[mm:ss.xx]Teks lirik`).
+Press `L` in the TUI to open the lyrics view. The active line is highlighted and scrolls automatically to follow the playback position in real time. See `example.lrc` in the project root for the standard LRC format (`[mm:ss.xx]Lyric text`).
 
 ---
 
-## 🎨 Kustomisasi Tema
+## 🎨 Custom Themes
 
-Salin file contoh ke lokasi konfigurasi tema:
+Copy the example file to the theme config location:
 
 ```bash
-mkdir -p ~/.moc
-cp theme.example.toml ~/.moc/theme.toml
+mkdir -p ~/.morp
+cp theme.example.toml ~/.morp/theme.toml
 ```
 
-Edit `~/.moc/theme.toml` sesuai selera. Setiap kali `mocp` dibuka, tema akan otomatis dimuat ulang dari file ini. Jika file tidak ada, tema bawaan (cyan/yellow/green) akan digunakan.
+Edit `~/.morp/theme.toml` to your preference. The theme is reloaded every time `morp` is opened. If the file does not exist, the default theme (cyan/yellow/green) is used.
 
 ---
 
-## 📂 Struktur Proyek
+## 🌐 Localization (i18n)
+
+morp supports multiple languages via YAML locale files in the `locales/` directory. Currently available:
+
+| Code | Language |
+|------|----------|
+| `en` | English (default) |
+| `id` | Bahasa Indonesia |
+
+### Setting the Language
+
+**Option 1 — `MORP_LANG` environment variable** (highest priority):
+```bash
+MORP_LANG=id morp       # Force Bahasa Indonesia
+MORP_LANG=en morp       # Force English
+```
+
+**Option 2 — System `LANG` variable** (auto-detected):
+```bash
+# If LANG starts with "id" (e.g. id_ID.UTF-8), morp uses Bahasa Indonesia automatically
+export LANG=id_ID.UTF-8
+morp
+```
+
+**Default**: If neither variable is set, morp uses **English**.
+
+### Adding a New Language
+
+Create a `locales/<code>.yml` file following the same structure as `locales/en.yml`, then recompile:
+```bash
+cargo build --release
+```
+
+---
+
+## 🎵 Last.fm / Libre.fm Scrobbling
+
+morp supports scrobbling to **Last.fm** and **Libre.fm** per Audioscrobbler 2.0 rules (track submitted after 50% of duration or 4 minutes, minimum track length 30 seconds).
+
+### Authentication Setup
+
+```bash
+# Last.fm
+morp --lastfm-auth
+
+# Libre.fm
+morp --librefm-auth
+```
+
+This opens a browser for you to log in and grant access. The session key is saved to `~/.morp/scrobble.toml` after successful authentication.
+
+### Build with Embedded API Key (Binary Distribution)
+
+```bash
+LASTFM_API_KEY=xxx LASTFM_API_SECRET=yyy cargo build --release
+```
+
+Users of the resulting binary do not need to configure API keys manually — they just run `morp --lastfm-auth` to log in.
+
+---
+
+## 📂 Project Structure
 
 ```text
 rewrite-mocp/
 ├── Cargo.toml
-├── theme.example.toml  # Contoh tema kustom (salin ke ~/.moc/theme.toml)
-├── example.lrc         # Contoh format file lirik tersinkron
+├── theme.example.toml  # Custom theme example (copy to ~/.morp/theme.toml)
+├── example.lrc         # Synced lyrics format example
+├── locales/
+│   ├── en.yml          # English locale (default)
+│   └── id.yml          # Bahasa Indonesia locale
 ├── src/
 │   ├── audio.rs      # Audio engine: decoding (Symphonia), resampling, CPAL output
-│   ├── cli.rs        # CLI argument parser (Clap) kompatibel dengan opsi MOC
-│   ├── client.rs     # Client IPC Unix Domain Socket & auto-spawn daemon
-│   ├── domain.rs     # Tipe data bersama, status playback, protokol request/response
+│   ├── cli.rs        # CLI argument parser (Clap), compatible with classic mocp flags
+│   ├── client.rs     # Unix Domain Socket client & auto-spawn daemon
+│   ├── domain.rs     # Shared data types, playback status, request/response protocol
 │   ├── library.rs    # Music Library: scan, cache, fuzzy search (Artists/Albums/Tracks)
-│   ├── lyrics.rs     # Parser lirik tersinkron format .lrc
-│   ├── main.rs       # Entry point pengatur alur server/client/TUI
-│   ├── playlist.rs   # Manajemen daftar putar, shuffle ordering, recursive scan
-│   ├── server.rs     # Server daemon, MPRIS, notifikasi desktop, socket listener
+│   ├── lyrics.rs     # Synced lyrics parser (.lrc format)
+│   ├── main.rs       # Entry point: server/client/TUI routing + i18n init
+│   ├── playlist.rs   # Playlist management, shuffle ordering, recursive scan
+│   ├── scrobble.rs   # Last.fm/Libre.fm scrobbling (Audioscrobbler 2.0)
+│   ├── server.rs     # Daemon server, MPRIS, desktop notifications, socket listener
 │   ├── tags.rs       # Metadata extraction (ID3v1, ID3v2, Vorbis, format probing)
-│   ├── theme.rs      # Loader tema kustom (TOML) & parser warna (nama/hex/rgb)
-│   └── ui.rs         # TUI visual ganda (Ratatui & Crossterm) + dukungan mouse
+│   ├── theme.rs      # Custom theme loader (TOML) & color parser (name/hex/rgb)
+│   └── ui.rs         # TUI (Ratatui & Crossterm) with mouse support
 └── README.md
 ```

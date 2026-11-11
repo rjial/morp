@@ -1,7 +1,13 @@
 [package]
-name = "mocp"
+name = "morp"
 version = "0.1.0"
 edition = "2021"
+description = "Music On Rust Player — a modern console music player for Linux"
+authors = ["Rizal Abdul Basith <rizalabdulbasith@maxxitani.id>"]
+license = "MIT"
+repository = "https://github.com/rjial/morp"
+keywords = ["music", "player", "tui", "audio", "cli"]
+categories = ["multimedia::audio", "command-line-utilities"]
 
 [dependencies]
 clap = { version = "4.5", features = ["derive"] }
@@ -18,4 +24,8 @@ notify-rust = "4.11"
 fuzzy-matcher = "0.3"
 toml = "0.8"
 souvlaki = "0.7"
+ureq = "2"
+md5 = "0.7"
+open = "5"
+rust-i18n = "3"
 

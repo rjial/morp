@@ -40,12 +40,12 @@ impl Default for Theme {
 
 impl Theme {
     pub fn get_default_path() -> PathBuf {
-        if let Ok(moc_dir) = std::env::var("MOC_DIR") {
-            PathBuf::from(moc_dir).join("theme.toml")
+        if let Ok(morp_dir) = std::env::var("MORP_DIR") {
+            PathBuf::from(morp_dir).join("theme.toml")
         } else if let Some(home) = dirs::home_dir() {
-            home.join(".moc").join("theme.toml")
+            home.join(".morp").join("theme.toml")
         } else {
-            PathBuf::from("/tmp/moc_theme.toml")
+            PathBuf::from("/tmp/morp_theme.toml")
         }
     }
 

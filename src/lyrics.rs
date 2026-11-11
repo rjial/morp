@@ -110,7 +110,7 @@ mod tests {
     fn write_temp_lrc(content: &str) -> PathBuf {
         let unique = TEST_COUNTER.fetch_add(1, Ordering::SeqCst);
         let path = std::env::temp_dir().join(format!(
-            "mocp_test_{}_{}.lrc",
+            "morp_test_{}_{}.lrc",
             std::process::id(),
             unique
         ));

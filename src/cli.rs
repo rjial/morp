@@ -3,11 +3,11 @@ use std::path::PathBuf;
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "mocp",
-    author = "Damian Pietras / Rust rewrite",
-    version = "0.1.0",
-    about = "Music On Console Player - Rust Rewrite",
-    long_about = "A console audio player for Linux/Unix designed to be powerful and easy to use."
+    name = "morp",
+    author = "Rizal Abdul Basith",
+    version = env!("CARGO_PKG_VERSION"),
+    about = "Music On Rust Player",
+    long_about = "A console audio player for Linux/Unix written in Rust."
 )]
 pub struct CliArgs {
     /// Start in MusicDir or use specified music library directory
@@ -101,6 +101,14 @@ pub struct CliArgs {
     /// Turn off a control (shuffle, repeat, autonext)
     #[arg(short = 'u', long = "off")]
     pub off: Option<String>,
+
+    /// Autentikasi dengan Last.fm via browser (callback URL)
+    #[arg(long = "lastfm-auth")]
+    pub lastfm_auth: bool,
+
+    /// Autentikasi dengan Libre.fm via browser (callback URL)
+    #[arg(long = "librefm-auth")]
+    pub librefm_auth: bool,
 
     /// Files or directories to play or append
     #[arg(value_name = "FILES")]

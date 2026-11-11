@@ -1,5 +1,6 @@
 use crate::client::Client;
 use crate::domain::{PlaybackState, PlaybackStatus, SongInfo};
+use rust_i18n::t;
 use crate::library::{Library, LibraryTrack};
 use crate::lyrics::Lyrics;
 use crate::tags::is_audio_file;
@@ -155,7 +156,7 @@ impl App {
     }
 
     pub fn init_library_data(&mut self) {
-        let mut artists = vec!["[All Artists]".to_string()];
+        let mut artists = vec![t!("all_artists").to_string()];
         artists.extend(self.library.artists());
         self.artists = artists;
         if !self.artists.is_empty() {
@@ -168,7 +169,7 @@ impl App {
 
     pub fn update_albums(&mut self) {
         let selected_artist = self.selected_artist();
-        let mut albums = vec!["[All Albums]".to_string()];
+        let mut albums = vec![t!("all_albums").to_string()];
         albums.extend(self.library.albums_for_artist(selected_artist));
         self.albums = albums;
         self.album_state.select(Some(0));
@@ -198,31 +199,27 @@ impl App {
 
     pub fn selected_artist(&self) -> Option<&str> {
         let idx = self.artist_state.selected()?;
-        let name = self.artists.get(idx)?;
-        if name == "[All Artists]" {
-            None
-        } else {
-            Some(name.as_str())
+        if idx == 0 {
+            return None; // first item is always "All Artists"
         }
+        self.artists.get(idx).map(|s| s.as_str())
     }
 
     pub fn selected_album(&self) -> Option<&str> {
         let idx = self.album_state.selected()?;
-        let name = self.albums.get(idx)?;
-        if name == "[All Albums]" {
-            None
-        } else {
-            Some(name.as_str())
+        if idx == 0 {
+            return None; // first item is always "All Albums"
         }
+        self.albums.get(idx).map(|s| s.as_str())
     }
 
     pub fn rescan_library(&mut self) {
-        self.set_message("Rescanning library from disk...");
+        self.set_message(&t!("msg.rescanning").to_string());
         self.library = Library::scan(&self.library.music_dir);
         let _ = self.library.save_cache();
         self.init_library_data();
         let count = self.library.tracks.len();
-        self.set_message(&format!("Library scan complete! Found {} tracks", count));
+        self.set_message(&t!("msg.scan_complete", count = count).to_string());
     }
 
     pub fn refresh_dir(&mut self) {
@@ -401,7 +398,7 @@ impl App {
             (_, KeyCode::Char('L')) => {
                 self.show_lyrics = !self.show_lyrics;
                 if self.show_lyrics && self.lyrics.lines.is_empty() {
-                    self.set_message("No lyrics (.lrc) found for this track");
+                    self.set_message(&t!("msg.no_lyrics").to_string());
                 }
             }
             // Tab handling
@@ -538,7 +535,7 @@ impl App {
                             let _ = self.client.clear();
                             let _ = self.client.append(paths);
                             let _ = self.client.play();
-                            self.set_message("Playing selected library tracks");
+                            self.set_message(&t!("msg.playing_tracks").to_string());
                             self.refresh_playlist();
                             self.refresh_status();
                         }
@@ -570,14 +567,14 @@ impl App {
                         let paths: Vec<PathBuf> = self.library_tracks.iter().map(|t| t.path.clone()).collect();
                         let count = paths.len();
                         let _ = self.client.append(paths);
-                        self.set_message(&format!("Added {} tracks to playlist", count));
+                        self.set_message(&t!("msg.added_tracks", count = count).to_string());
                         self.refresh_playlist();
                     }
                     LibraryFocus::Tracks => {
                         if let Some(idx) = self.track_state.selected() {
                             if let Some(track) = self.library_tracks.get(idx) {
                                 let _ = self.client.append(vec![track.path.clone()]);
-                                self.set_message(&format!("Added {}", track.title));
+                                self.set_message(&t!("msg.added", name = track.title.clone()).to_string());
                                 self.refresh_playlist();
                             }
                         }
@@ -588,7 +585,7 @@ impl App {
                         if let Some(entry) = self.dir_entries.get(idx) {
                             if !entry.is_parent {
                                 let _ = self.client.append(vec![entry.path.clone()]);
-                                self.set_message(&format!("Added {}", entry.name));
+                                self.set_message(&t!("msg.added", name = entry.name.clone()).to_string());
                                 self.refresh_playlist();
                             }
                         }
@@ -610,7 +607,7 @@ impl App {
             }
             (_, KeyCode::Char('C')) => {
                 let _ = self.client.clear();
-                self.set_message("Cleared playlist");
+                self.set_message(&t!("msg.cleared").to_string());
                 self.refresh_playlist();
                 self.refresh_status();
             }
@@ -783,7 +780,7 @@ impl App {
                 let path = track.path.clone();
                 let title = track.title.clone();
                 let _ = self.client.play_path(path);
-                self.set_message(&format!("Playing {}", title));
+                self.set_message(&t!("msg.playing", title = title).to_string());
                 self.refresh_playlist();
                 self.refresh_status();
             }
@@ -1050,7 +1047,7 @@ fn draw_header(frame: &mut ratatui::Frame, area: Rect, app: &mut App) {
     };
 
     // Compute horizontal offsets so we can register mouse hit-regions for each tab.
-    let prefix = " MOCP  [Views: ";
+    let prefix = " MORP  [Views: ";
     let lib_label = " 1: Library ";
     let sep1 = " | ";
     let files_label = " 2: Files ";
@@ -1069,7 +1066,7 @@ fn draw_header(frame: &mut ratatui::Frame, area: Rect, app: &mut App) {
     app.hit_regions.view_tab_playlist = Some(pl_rect);
 
     let header_line = Line::from(vec![
-        Span::styled(" MOCP ", Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)),
+        Span::styled(" MORP ", Style::default().fg(Color::Black).bg(Color::Yellow).add_modifier(Modifier::BOLD)),
         Span::raw(" [Views: "),
         Span::styled(lib_label, tab_style(app.current_view == CurrentView::Library)),
         Span::raw(sep1),
@@ -1114,7 +1111,7 @@ fn draw_library_view(frame: &mut ratatui::Frame, area: Rect, app: &mut App) {
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
                 .border_style(artist_border)
-                .title(Span::styled(" Artists ", artist_border)),
+                .title(Span::styled(t!("panel.artists").to_string(), artist_border)),
         )
         .highlight_style(theme.selected_item_style(is_artist_focused));
     frame.render_stateful_widget(artist_list, columns[0], &mut app.artist_state);
@@ -1133,7 +1130,7 @@ fn draw_library_view(frame: &mut ratatui::Frame, area: Rect, app: &mut App) {
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
                 .border_style(album_border)
-                .title(Span::styled(" Albums ", album_border)),
+                .title(Span::styled(t!("panel.albums").to_string(), album_border)),
         )
         .highlight_style(theme.selected_item_style(is_album_focused));
     frame.render_stateful_widget(album_list, columns[1], &mut app.album_state);
@@ -1147,11 +1144,15 @@ fn draw_library_view(frame: &mut ratatui::Frame, area: Rect, app: &mut App) {
     };
 
     let track_title = if app.is_searching {
-        format!(" Search: {}_ ", app.search_query)
+        t!("panel.tracks_search", query = app.search_query.clone()).to_string()
     } else if !app.search_query.is_empty() {
-        format!(" Filter: '{}' ({} tracks) ", app.search_query, app.library_tracks.len())
+        t!(
+            "panel.tracks_filter",
+            query = app.search_query.clone(),
+            count = app.library_tracks.len()
+        ).to_string()
     } else {
-        format!(" Tracks ({} songs) ", app.library_tracks.len())
+        t!("panel.tracks", count = app.library_tracks.len()).to_string()
     };
 
     let track_items: Vec<ListItem> = app
@@ -1194,11 +1195,11 @@ fn draw_files_view(frame: &mut ratatui::Frame, area: Rect, app: &mut App) {
     let is_dir_active = app.active_panel == ActivePanel::Directory;
     let dir_border = theme.border_style(is_dir_active);
 
-    let dir_title = format!(
-        " Directory: {} {}",
-        app.current_dir.to_string_lossy(),
-        if is_dir_active { "*" } else { "" }
-    );
+    let dir_title = t!(
+        "panel.directory",
+        path = app.current_dir.to_string_lossy().to_string(),
+        active = if is_dir_active { "*" } else { "" }
+    ).to_string();
 
     let dir_items: Vec<ListItem> = app
         .dir_entries
@@ -1231,11 +1232,11 @@ fn draw_files_view(frame: &mut ratatui::Frame, area: Rect, app: &mut App) {
     let is_pl_active = app.active_panel == ActivePanel::Playlist;
     let pl_border = theme.border_style(is_pl_active);
 
-    let pl_title = format!(
-        " Playlist ({} tracks) {}",
-        app.playlist_items.len(),
-        if is_pl_active { "*" } else { "" }
-    );
+    let pl_title = t!(
+        "panel.playlist",
+        count = app.playlist_items.len(),
+        active = if is_pl_active { "*" } else { "" }
+    ).to_string();
 
     let pl_items: Vec<ListItem> = app
         .playlist_items
@@ -1278,7 +1279,7 @@ fn draw_playlist_view(frame: &mut ratatui::Frame, area: Rect, app: &mut App) {
 
     let theme = &app.theme;
     let border_style = theme.border_style(true);
-    let title = format!(" Playlist Queue ({} tracks) ", app.playlist_items.len());
+    let title = t!("panel.playlist_queue", count = app.playlist_items.len()).to_string();
 
     let items: Vec<ListItem> = app
         .playlist_items
@@ -1324,19 +1325,19 @@ fn draw_lyrics_view(frame: &mut ratatui::Frame, area: Rect, app: &App) {
     let border_style = theme.border_style(true);
 
     let title = match &app.status.current_file {
-        Some(song) => format!(" Lyrics: {} ", song.display_name()),
-        None => " Lyrics ".to_string(),
+        Some(song) => t!("panel.lyrics_song", song = song.display_name()).to_string(),
+        None => t!("panel.lyrics").to_string(),
     };
 
     if app.lyrics.lines.is_empty() {
         let placeholder = Paragraph::new(vec![
             Line::from(""),
             Line::from(Span::styled(
-                "No synced lyrics (.lrc) found for this track.",
+                t!("lyrics.no_lyrics").to_string(),
                 Style::default().fg(Color::DarkGray),
             )),
             Line::from(Span::styled(
-                "Place a file with the same name and a .lrc extension next to the song.",
+                t!("lyrics.no_lyrics_hint").to_string(),
                 Style::default().fg(Color::DarkGray),
             )),
         ])
@@ -1392,7 +1393,7 @@ fn draw_status(frame: &mut ratatui::Frame, area: Rect, app: &mut App) {
         .borders(Borders::ALL)
         .border_type(BorderType::Rounded)
         .border_style(theme.player_status_border_style())
-        .title(Span::styled(" Player Status ", theme.player_status_title_style()));
+        .title(Span::styled(t!("panel.player_status").to_string(), theme.player_status_title_style()));
 
     let inner = status_block.inner(area);
     frame.render_widget(status_block, area);
@@ -1410,14 +1411,14 @@ fn draw_status(frame: &mut ratatui::Frame, area: Rect, app: &mut App) {
 
     // Row 1: State & Title
     let (state_text, state_style) = match app.status.state {
-        PlaybackState::Play => (" PLAY ", Style::default().bg(Color::Green).fg(Color::Black).add_modifier(Modifier::BOLD)),
-        PlaybackState::Pause => (" PAUSE ", Style::default().bg(Color::Yellow).fg(Color::Black).add_modifier(Modifier::BOLD)),
-        PlaybackState::Stop => (" STOP ", Style::default().bg(Color::DarkGray).fg(Color::White).add_modifier(Modifier::BOLD)),
+        PlaybackState::Play => (t!("status.play").to_string(), Style::default().bg(Color::Green).fg(Color::Black).add_modifier(Modifier::BOLD)),
+        PlaybackState::Pause => (t!("status.pause").to_string(), Style::default().bg(Color::Yellow).fg(Color::Black).add_modifier(Modifier::BOLD)),
+        PlaybackState::Stop => (t!("status.stop").to_string(), Style::default().bg(Color::DarkGray).fg(Color::White).add_modifier(Modifier::BOLD)),
     };
 
     let song_text = match &app.status.current_file {
         Some(song) => song.display_name(),
-        None => "No song playing".to_string(),
+        None => t!("status.no_song").to_string(),
     };
 
     let title_line = Line::from(vec![
@@ -1458,10 +1459,10 @@ fn draw_status(frame: &mut ratatui::Frame, area: Rect, app: &mut App) {
     frame.render_widget(gauge, sub_chunks[1]);
 
     // Row 3: Volume & Mode toggles
-    let vol_text = format!("Vol: {:>3}%", app.status.volume);
-    let shuffle_text = if app.status.shuffle { "[SHUFFLE: ON]" } else { "[SHUFFLE: OFF]" };
-    let repeat_text = if app.status.repeat { "[REPEAT: ON]" } else { "[REPEAT: OFF]" };
-    let autonext_text = if app.status.autonext { "[AUTONEXT: ON]" } else { "[AUTONEXT: OFF]" };
+    let vol_text = t!("status.vol", vol = app.status.volume).to_string();
+    let shuffle_text = if app.status.shuffle { t!("status.shuffle_on").to_string() } else { t!("status.shuffle_off").to_string() };
+    let repeat_text = if app.status.repeat { t!("status.repeat_on").to_string() } else { t!("status.repeat_off").to_string() };
+    let autonext_text = if app.status.autonext { t!("status.autonext_on").to_string() } else { t!("status.autonext_off").to_string() };
 
     let shuffle_style = if app.status.shuffle {
         theme.highlight_text_style()
@@ -1499,27 +1500,27 @@ fn draw_footer(frame: &mut ratatui::Frame, area: Rect, app: &App) {
     } else {
         Line::from(vec![
             Span::styled("1/2/3", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            Span::raw(":View "),
+            Span::raw(t!("footer.view").to_string()),
             Span::styled("L", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            Span::raw(":Lyrics "),
+            Span::raw(t!("footer.lyrics_key").to_string()),
             Span::styled("Tab", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            Span::raw(":Col "),
+            Span::raw(t!("footer.col").to_string()),
             Span::styled("/", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            Span::raw(":Search "),
+            Span::raw(t!("footer.search").to_string()),
             Span::styled("ENTER", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            Span::raw(":Play "),
+            Span::raw(t!("footer.play").to_string()),
             Span::styled("SPACE", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            Span::raw(":Pause "),
+            Span::raw(t!("footer.pause_key").to_string()),
             Span::styled("a", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            Span::raw(":Add "),
+            Span::raw(t!("footer.add").to_string()),
             Span::styled("u", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            Span::raw(":Scan "),
+            Span::raw(t!("footer.scan").to_string()),
             Span::styled("Mouse", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            Span::raw(":Click/Scroll "),
+            Span::raw(t!("footer.click").to_string()),
             Span::styled("q", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
-            Span::raw(":Detach "),
+            Span::raw(t!("footer.detach").to_string()),
             Span::styled("Q", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)),
-            Span::raw(":Quit "),
+            Span::raw(t!("footer.quit").to_string()),
             Span::styled("?:Help", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
         ])
     };
@@ -1537,30 +1538,30 @@ fn draw_help_modal(frame: &mut ratatui::Frame, area: Rect) {
     frame.render_widget(Clear, modal_area);
 
     let help_text = vec![
-        Line::from(vec![Span::styled("MOCP (Music On Console Player) - Keyboard Shortcuts", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))]),
+        Line::from(vec![Span::styled(t!("help.title").to_string(), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))]),
         Line::from(""),
-        Line::from(vec![Span::styled("1 / 2 / 3   ", Style::default().fg(Color::Cyan)), Span::raw("Switch View (1: Library, 2: Files, 3: Playlist)")]),
-        Line::from(vec![Span::styled("L           ", Style::default().fg(Color::Cyan)), Span::raw("Toggle synced Lyrics view (.lrc sidecar file)")]),
-        Line::from(vec![Span::styled("Tab         ", Style::default().fg(Color::Cyan)), Span::raw("Switch column (Artists/Albums/Tracks) or pane")]),
-        Line::from(vec![Span::styled("/           ", Style::default().fg(Color::Cyan)), Span::raw("Fuzzy search / Filter in Library in real-time")]),
-        Line::from(vec![Span::styled("u / F5      ", Style::default().fg(Color::Cyan)), Span::raw("Rescan Music Library from disk")]),
-        Line::from(vec![Span::styled("Enter       ", Style::default().fg(Color::Cyan)), Span::raw("Play selected track, album, artist, or file")]),
-        Line::from(vec![Span::styled("Space       ", Style::default().fg(Color::Cyan)), Span::raw("Toggle Pause / Unpause")]),
-        Line::from(vec![Span::styled("s           ", Style::default().fg(Color::Cyan)), Span::raw("Stop playback")]),
-        Line::from(vec![Span::styled("n / >       ", Style::default().fg(Color::Cyan)), Span::raw("Next track")]),
-        Line::from(vec![Span::styled("b / <       ", Style::default().fg(Color::Cyan)), Span::raw("Previous track")]),
-        Line::from(vec![Span::styled("Left / ,    ", Style::default().fg(Color::Cyan)), Span::raw("Seek backward 5s")]),
-        Line::from(vec![Span::styled("Right / .   ", Style::default().fg(Color::Cyan)), Span::raw("Seek forward 5s")]),
-        Line::from(vec![Span::styled("+ / -       ", Style::default().fg(Color::Cyan)), Span::raw("Volume Up / Down")]),
-        Line::from(vec![Span::styled("a           ", Style::default().fg(Color::Cyan)), Span::raw("Add selected item to playlist")]),
-        Line::from(vec![Span::styled("d / Del     ", Style::default().fg(Color::Cyan)), Span::raw("Remove track from playlist")]),
-        Line::from(vec![Span::styled("C           ", Style::default().fg(Color::Cyan)), Span::raw("Clear playlist")]),
-        Line::from(vec![Span::styled("S / R / X   ", Style::default().fg(Color::Cyan)), Span::raw("Toggle Shuffle / Repeat / AutoNext")]),
-        Line::from(vec![Span::styled("Mouse       ", Style::default().fg(Color::Cyan)), Span::raw("Click tabs/lists to select, scroll to navigate/volume")]),
-        Line::from(vec![Span::styled("q           ", Style::default().fg(Color::Cyan)), Span::raw("Detach TUI (Server keeps playing!)")]),
-        Line::from(vec![Span::styled("Q           ", Style::default().fg(Color::Red)), Span::raw("Shutdown Server and Quit")]),
+        Line::from(vec![Span::styled("1 / 2 / 3   ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.switch_view").to_string())]),
+        Line::from(vec![Span::styled("L           ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.toggle_lyrics").to_string())]),
+        Line::from(vec![Span::styled("Tab         ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.switch_col").to_string())]),
+        Line::from(vec![Span::styled("/           ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.search").to_string())]),
+        Line::from(vec![Span::styled("u / F5      ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.rescan").to_string())]),
+        Line::from(vec![Span::styled("Enter       ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.play_enter").to_string())]),
+        Line::from(vec![Span::styled("Space       ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.pause_space").to_string())]),
+        Line::from(vec![Span::styled("s           ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.stop").to_string())]),
+        Line::from(vec![Span::styled("n / >       ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.next").to_string())]),
+        Line::from(vec![Span::styled("b / <       ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.prev").to_string())]),
+        Line::from(vec![Span::styled("Left / ,    ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.seek_back").to_string())]),
+        Line::from(vec![Span::styled("Right / .   ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.seek_fwd").to_string())]),
+        Line::from(vec![Span::styled("+ / -       ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.volume").to_string())]),
+        Line::from(vec![Span::styled("a           ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.add").to_string())]),
+        Line::from(vec![Span::styled("d / Del     ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.remove").to_string())]),
+        Line::from(vec![Span::styled("C           ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.clear").to_string())]),
+        Line::from(vec![Span::styled("S / R / X   ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.toggles").to_string())]),
+        Line::from(vec![Span::styled("Mouse       ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.mouse").to_string())]),
+        Line::from(vec![Span::styled("q           ", Style::default().fg(Color::Cyan)), Span::raw(t!("help.detach").to_string())]),
+        Line::from(vec![Span::styled("Q           ", Style::default().fg(Color::Red)), Span::raw(t!("help.quit").to_string())]),
         Line::from(""),
-        Line::from(vec![Span::styled("Press 'q', 'Esc', or '?' to close this help screen.", Style::default().fg(Color::DarkGray))]),
+        Line::from(vec![Span::styled(t!("help.close").to_string(), Style::default().fg(Color::DarkGray))]),
     ];
 
     let help_paragraph = Paragraph::new(help_text)
@@ -1569,7 +1570,7 @@ fn draw_help_modal(frame: &mut ratatui::Frame, area: Rect) {
                 .borders(Borders::ALL)
                 .border_type(BorderType::Double)
                 .border_style(Style::default().fg(Color::Yellow))
-                .title(" Help "),
+                .title(t!("panel.help_panel").to_string()),
         )
         .wrap(Wrap { trim: true });
 

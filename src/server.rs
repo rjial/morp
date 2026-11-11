@@ -1,6 +1,8 @@
 use crate::audio::{AudioCommand, AudioEngine, AudioEvent};
 use crate::domain::{ClientRequest, PlaybackState, PlaybackStatus, ServerResponse};
 use crate::playlist::Playlist;
+use crate::scrobble::{ScrobbleConfig, ScrobbleEvent, Scrobbler};
+use rust_i18n::t;
 use notify_rust::Notification;
 use souvlaki::{
     MediaControlEvent, MediaMetadata, MediaPlayback, MediaPosition, PlatformConfig, MediaControls,
@@ -11,18 +13,18 @@ use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
-use std::sync::mpsc::{channel, Receiver};
+use std::sync::mpsc::{channel, Receiver, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
 pub fn get_socket_path() -> PathBuf {
-    if let Ok(moc_dir) = std::env::var("MOC_DIR") {
-        PathBuf::from(moc_dir).join("socket")
+    if let Ok(morp_dir) = std::env::var("MORP_DIR") {
+        PathBuf::from(morp_dir).join("socket")
     } else if let Some(home) = dirs::home_dir() {
-        home.join(".moc").join("socket")
+        home.join(".morp").join("socket")
     } else {
-        PathBuf::from("/tmp/mocp.sock")
+        PathBuf::from("/tmp/morp.sock")
     }
 }
 
@@ -78,8 +80,8 @@ impl Server {
 
         // Initialize MPRIS controls
         let mpris_config = PlatformConfig {
-            dbus_name: "org.mpris.MediaPlayer2.mocp",
-            display_name: "MOCP Rust",
+            dbus_name: "org.mpris.MediaPlayer2.morp",
+            display_name: "Music On Rust",
             hwnd: None,
         };
         let mut controls = MediaControls::new(mpris_config).ok();
@@ -162,13 +164,40 @@ impl Server {
 
         let controls = Arc::new(Mutex::new(controls));
 
+        // Setup scrobbler
+        let scrobble_tx: Option<Sender<ScrobbleEvent>> = {
+            let cfg = ScrobbleConfig::load();
+            if cfg.is_ready() {
+                let (tx, rx) = channel::<ScrobbleEvent>();
+                let scrobbler = Scrobbler::new(cfg);
+                thread::spawn(move || {
+                    while let Ok(event) = rx.recv() {
+                        match event {
+                            ScrobbleEvent::NowPlaying { artist, title, album, duration } => {
+                                scrobbler.now_playing(&artist, &title, &album, duration);
+                            }
+                            ScrobbleEvent::Scrobble { artist, title, album, duration, timestamp } => {
+                                scrobbler.scrobble(&artist, &title, &album, duration, timestamp);
+                            }
+                        }
+                    }
+                });
+                Some(tx)
+            } else {
+                None
+            }
+        };
+
         // Start background observer for MPRIS updates and Notifications
         let audio_for_obs = Arc::clone(&audio);
         let playlist_for_obs = Arc::clone(&playlist);
         let controls_for_obs = Arc::clone(&controls);
+        let scrobble_tx_obs = scrobble_tx;
         thread::spawn(move || {
             let mut last_state = PlaybackState::Stop;
             let mut last_path = PathBuf::new();
+            let mut track_start: Option<u64> = None;
+            let mut scrobbled = true;
 
             loop {
                 thread::sleep(Duration::from_millis(250));
@@ -192,6 +221,51 @@ impl Server {
                     }
                 };
 
+                // Scrobble tracking
+                if current_path != last_path {
+                    // Track changed: reset scrobble state, send NowPlaying
+                    track_start = None;
+                    scrobbled = true;
+
+                    if !current_path.as_os_str().is_empty()
+                        && current_state == PlaybackState::Play
+                        && !current_title.is_empty()
+                    {
+                        // Don't scrobble tracks shorter than 30 seconds
+                        let too_short = song_duration.map(|d| d < 30).unwrap_or(false);
+                        if !too_short {
+                            track_start = Some(crate::scrobble::unix_now());
+                            scrobbled = false;
+                            if let Some(ref tx) = scrobble_tx_obs {
+                                let _ = tx.send(ScrobbleEvent::NowPlaying {
+                                    artist: current_artist.clone(),
+                                    title: current_title.clone(),
+                                    album: current_album.clone(),
+                                    duration: song_duration,
+                                });
+                            }
+                        }
+                    }
+                } else if current_state == PlaybackState::Play && !scrobbled {
+                    if let (Some(start), Some(duration)) = (track_start, song_duration) {
+                        let elapsed = crate::scrobble::unix_now().saturating_sub(start);
+                        // Scrobble at 50% or 4 minutes, whichever comes first
+                        let threshold = (duration / 2).min(240);
+                        if elapsed >= threshold && elapsed >= 30 {
+                            scrobbled = true;
+                            if let Some(ref tx) = scrobble_tx_obs {
+                                let _ = tx.send(ScrobbleEvent::Scrobble {
+                                    artist: current_artist.clone(),
+                                    title: current_title.clone(),
+                                    album: current_album.clone(),
+                                    duration: Some(duration),
+                                    timestamp: start,
+                                });
+                            }
+                        }
+                    }
+                }
+
                 let mut guard = controls_for_obs.lock().unwrap();
                 if let Some(ref mut c) = *guard {
                     // 1. Update metadata if track changed
@@ -214,7 +288,7 @@ impl Server {
                                 current_title.clone()
                             };
                             let _ = Notification::new()
-                                .summary("Now Playing")
+                                .summary(&t!("now_playing"))
                                 .body(&body)
                                 .icon("audio-x-generic")
                                 .show();

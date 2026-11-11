@@ -1,3 +1,5 @@
+rust_i18n::i18n!("locales", fallback = "en");
+
 mod audio;
 mod cli;
 mod client;
@@ -5,6 +7,7 @@ mod domain;
 mod library;
 mod lyrics;
 mod playlist;
+mod scrobble;
 mod server;
 mod tags;
 mod theme;
@@ -14,19 +17,41 @@ use clap::Parser;
 use cli::CliArgs;
 use client::Client;
 use domain::PlaybackState;
+use rust_i18n::t;
 use server::Server;
 use std::fs;
 use std::path::PathBuf;
 use ui::{run_ui, App};
 
+fn detect_locale() -> String {
+    if let Ok(lang) = std::env::var("MORP_LANG") {
+        return lang;
+    }
+    if let Ok(lang) = std::env::var("LANG") {
+        if lang.starts_with("id") {
+            return "id".to_string();
+        }
+    }
+    "en".to_string()
+}
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    rust_i18n::set_locale(&detect_locale());
     let args = CliArgs::parse();
+
+    // Handle Last.fm/Libre.fm auth via browser callback (no server connection needed)
+    if args.lastfm_auth {
+        return handle_scrobble_auth("lastfm");
+    }
+    if args.librefm_auth {
+        return handle_scrobble_auth("librefm");
+    }
 
     // 1. Run as server if requested
     if args.server || args.foreground {
         let srv = Server::new();
         if let Err(e) = srv.run() {
-            eprintln!("Error starting server: {}", e);
+            eprintln!("{}", t!("error.start_server", error = e.to_string()));
             std::process::exit(1);
         }
         return Ok(());
@@ -35,13 +60,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 2. Scan library if requested via CLI
     if args.scan_library {
         let music_dir = args.music_dir.unwrap_or_else(library::Library::get_default_music_dir);
-        println!("Scanning music library at: {}", music_dir.display());
+        println!("{}", t!("scan.at", path = music_dir.display().to_string()));
         let lib = library::Library::scan(&music_dir);
-        lib.save_cache().map_err(|e| format!("Failed to save library cache: {}", e))?;
+        lib.save_cache().map_err(|e| t!("error.scan_cache", error = e.to_string()).to_string())?;
         println!(
-            "Scan complete! Indexed {} tracks across {} artists.",
-            lib.tracks.len(),
-            lib.artists().len()
+            "{}",
+            t!("scan.complete", tracks = lib.tracks.len(), artists = lib.artists().len())
         );
         return Ok(());
     }
@@ -75,29 +99,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // If positional files are given without flags, add them and play
     if !args.files.is_empty() {
-        let mut client = Client::ensure_server().map_err(|e| format!("Failed to connect to mocp server: {}", e))?;
+        let mut client = Client::ensure_server()
+            .map_err(|e| t!("error.connect", error = e.to_string()).to_string())?;
         let abs_paths: Vec<PathBuf> = args
             .files
             .iter()
             .map(|p| fs::canonicalize(p).unwrap_or_else(|_| p.clone()))
             .collect();
-        client.append(abs_paths).map_err(|e| format!("Append failed: {}", e))?;
-        client.play().map_err(|e| format!("Play failed: {}", e))?;
+        client.append(abs_paths).map_err(|e| t!("error.append", error = e.to_string()).to_string())?;
+        client.play().map_err(|e| t!("error.play", error = e.to_string()).to_string())?;
         return Ok(());
     }
 
     // 4. Otherwise launch interactive TUI
-    let client = Client::ensure_server().map_err(|e| format!("Failed to start/connect mocp server: {}", e))?;
+    let client = Client::ensure_server()
+        .map_err(|e| t!("error.start_connect", error = e.to_string()).to_string())?;
     let app = App::new(client, args.music_dir);
     if let Err(e) = run_ui(app) {
-        eprintln!("TUI Error: {}", e);
+        eprintln!("{}", t!("error.tui", error = e));
     }
 
     Ok(())
 }
 
 fn handle_cli_commands(args: CliArgs) -> Result<(), String> {
-    let mut client = Client::ensure_server().map_err(|e| format!("Failed to connect to mocp server: {}", e))?;
+    let mut client = Client::ensure_server()
+        .map_err(|e| t!("error.connect", error = e.to_string()).to_string())?;
 
     // Clear playlist
     if args.clear {
@@ -367,4 +394,73 @@ fn print_formatted(status: &domain::PlaybackStatus, fmt: &str) {
         .replace("%r", &rate_str);
 
     println!("{}", result);
+}
+
+fn handle_scrobble_auth(service: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let mut config = scrobble::ScrobbleConfig::load();
+    config.service = service.to_string();
+
+    if !config.can_authenticate() {
+        eprintln!("{}", t!("auth.no_key"));
+        eprintln!("{}", t!("auth.opt1"));
+        if service == "librefm" {
+            eprintln!("{}", t!("auth.opt2_librefm"));
+        } else {
+            eprintln!("{}", t!("auth.opt2_lastfm"));
+        }
+        eprintln!(
+            "{}",
+            t!("auth.opt3", path = scrobble::ScrobbleConfig::config_path().display().to_string())
+        );
+        eprintln!("{}", t!("auth.api_key_hint"));
+        eprintln!("{}", t!("auth.api_secret_hint"));
+        std::process::exit(1);
+    }
+
+    // Step 1: get temporary token
+    print!("{}", t!("auth.connecting", service = service));
+    let token = scrobble::get_token(&config)
+        .map_err(|e| t!("error.get_token", error = e.to_string()).to_string())?;
+    println!("{}", t!("auth.ok"));
+
+    // Step 2: build URL and open browser
+    let auth_url = scrobble::build_browser_url(&config, &token);
+    println!("\n{}", t!("auth.open_url", service = service));
+    println!("\n  {}\n", auth_url);
+
+    if let Err(e) = open::that(&auth_url) {
+        eprintln!("{}", t!("auth.browser_failed", error = e.to_string()));
+        eprintln!("{}", t!("auth.copy_url"));
+    } else {
+        println!("{}", t!("auth.browser_opened"));
+    }
+
+    // Step 3: poll until user clicks Allow (timeout 5 minutes, interval 3 seconds)
+    println!("{}\n", t!("auth.waiting"));
+    let (session_key, username) = scrobble::poll_for_session(&config, &token, 300, 3)
+        .map_err(|e| t!("error.poll", error = e.to_string()).to_string())?;
+
+    // Save config
+    config.session_key = session_key;
+    if !username.is_empty() {
+        config.username = username.clone();
+    }
+    config.enabled = true;
+    config.save().map_err(|e| t!("error.save_config", error = e.to_string()).to_string())?;
+
+    let suffix = if config.username.is_empty() {
+        String::new()
+    } else {
+        t!("auth.as_user", username = config.username.clone()).to_string()
+    };
+    println!(
+        "\n{}",
+        t!(
+            "auth.success",
+            suffix = suffix,
+            path = scrobble::ScrobbleConfig::config_path().display().to_string()
+        )
+    );
+
+    Ok(())
 }

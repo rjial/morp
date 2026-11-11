@@ -1,7 +1,7 @@
-# Contoh tema kustom untuk mocp (Rust Rewrite).
+# Contoh tema kustom untuk morp (Music On Rust Player).
 #
-# Salin file ini ke ~/.moc/theme.toml lalu sesuaikan warnanya.
-# Jika file ~/.moc/theme.toml tidak ada, mocp akan menggunakan tema
+# Salin file ini ke ~/.morp/theme.toml lalu sesuaikan warnanya.
+# Jika file ~/.morp/theme.toml tidak ada, morp akan menggunakan tema
 # bawaan (cyan/yellow/green) secara otomatis.
 #
 # Format warna yang didukung:
