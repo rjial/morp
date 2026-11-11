@@ -10,6 +10,14 @@ use std::path::PathBuf;
     long_about = "A console audio player for Linux/Unix designed to be powerful and easy to use."
 )]
 pub struct CliArgs {
+    /// Start in MusicDir or use specified music library directory
+    #[arg(short = 'm', long = "music-dir")]
+    pub music_dir: Option<PathBuf>,
+
+    /// Scan music library and update cache
+    #[arg(long = "scan-library")]
+    pub scan_library: bool,
+
     /// Start in server mode (daemonized or foreground)
     #[arg(short = 'S', long = "server")]
     pub server: bool,

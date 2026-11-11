@@ -8,6 +8,16 @@ Proyek ini mempertahankan arsitektur **Client-Server daemon** klasik khas MOC, a
 
 ## ✨ Fitur Utama
 
+- **Music Library Explorer (Fitur Baru!)**:
+  - Pengindeksan koleksi musik dari direktori musik (`~/Music` atau parameter `--music-dir`).
+  - **Tampilan 3 Kolom**: **Artists** $\rightarrow$ **Albums** $\rightarrow$ **Tracks**.
+  - **Live Search & Filter (`/`)**: Cari lagu, artis, atau album secara instan secara real-time.
+  - **Caching Otomatis**: Menyimpan cache indeks perpustakaan (`~/.moc/library_cache.json`) sehingga aplikasi terbuka seketika tanpa perlu scan ulang setiap kali dibuka.
+  - **Rescan Instan (`u` atau `F5`)**: Memperbarui indeks perpustakaan dari piringan/disk kapan saja.
+- **Sistem Multi-View TUI**:
+  - **View 1 (`1` atau `F1`)**: **Library** (Koleksi Artis, Album, dan Lagu).
+  - **View 2 (`2` atau `F2`)**: **Files** (File Manager & Playlist ganda klasik MOC).
+  - **View 3 (`3` atau `F3`)**: **Playlist Queue** (Daftar antrean pemutaran lagu).
 - **Arsitektur Client-Server Daemon**:
   - Server audio berjalan di latar belakang (daemon) dan berkomunikasi via Unix Domain Socket (`~/.moc/socket`).
   - Menutup antarmuka TUI dengan tombol `q` tidak akan mematikan musik (detach mode). Anda dapat membuka kembali kapan saja dengan menjalankan `mocp`.
@@ -54,7 +64,13 @@ sudo cp ./target/release/mocp /usr/local/bin/mocp
 
 | Tombol | Aksi |
 |---|---|
-| `Enter` | Putar lagu yang dipilih / Masuk ke direktori |
+| `1` / `F1` | Buka Tampilan **Library** (Artis, Album, Lagu) |
+| `2` / `F2` | Buka Tampilan **Files** (File Manager & Playlist split) |
+| `3` / `F3` | Buka Tampilan **Playlist Queue** penuh |
+| `Tab` | Pindah kolom (**Artists** $\leftrightarrow$ **Albums** $\leftrightarrow$ **Tracks**) atau panel |
+| `/` | Cari / Filter lagu di Library secara interaktif (*Live Search*) |
+| `u` / `F5` | Pindai ulang (*Rescan*) folder Music Library |
+| `Enter` | Putar lagu, album, artis, atau file yang dipilih |
 | `Space` | Toggle Pause / Unpause |
 | `s` | Stop pemutaran lagu |
 | `n` / `>` | Lagu berikutnya (Next) |
@@ -63,9 +79,7 @@ sudo cp ./target/release/mocp /usr/local/bin/mocp
 | `Right` / `.` | Maju 5 detik (Seek forward) |
 | `[` / `]` | Mundur / Maju 15 detik |
 | `+` / `-` | Naikkan / Turunkan volume |
-| `Tab` | Pindah fokus antara panel Direktori dan Playlist |
-| `a` | Tambahkan item/folder yang dipilih ke playlist |
-| `A` | Tambahkan semua file audio di folder saat ini ke playlist |
+| `a` | Tambahkan item/album/artis/folder yang dipilih ke playlist |
 | `d` / `Delete` | Hapus lagu dari playlist |
 | `C` | Bersihkan (Clear) seluruh playlist |
 | `S` | Toggle Shuffle |

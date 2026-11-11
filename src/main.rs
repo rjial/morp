@@ -2,6 +2,7 @@ mod audio;
 mod cli;
 mod client;
 mod domain;
+mod library;
 mod playlist;
 mod server;
 mod tags;
@@ -26,6 +27,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             eprintln!("Error starting server: {}", e);
             std::process::exit(1);
         }
+        return Ok(());
+    }
+
+    // 2. Scan library if requested via CLI
+    if args.scan_library {
+        let music_dir = args.music_dir.unwrap_or_else(library::Library::get_default_music_dir);
+        println!("Scanning music library at: {}", music_dir.display());
+        let lib = library::Library::scan(&music_dir);
+        lib.save_cache().map_err(|e| format!("Failed to save library cache: {}", e))?;
+        println!(
+            "Scan complete! Indexed {} tracks across {} artists.",
+            lib.tracks.len(),
+            lib.artists().len()
+        );
         return Ok(());
     }
 
@@ -69,9 +84,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
-    // 3. Otherwise launch interactive TUI
+    // 4. Otherwise launch interactive TUI
     let client = Client::ensure_server().map_err(|e| format!("Failed to start/connect mocp server: {}", e))?;
-    let app = App::new(client);
+    let app = App::new(client, args.music_dir);
     if let Err(e) = run_ui(app) {
         eprintln!("TUI Error: {}", e);
     }
