@@ -3,9 +3,11 @@ mod cli;
 mod client;
 mod domain;
 mod library;
+mod lyrics;
 mod playlist;
 mod server;
 mod tags;
+mod theme;
 mod ui;
 
 use clap::Parser;

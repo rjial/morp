@@ -1,0 +1,26 @@
+# Contoh tema kustom untuk mocp (Rust Rewrite).
+#
+# Salin file ini ke ~/.moc/theme.toml lalu sesuaikan warnanya.
+# Jika file ~/.moc/theme.toml tidak ada, mocp akan menggunakan tema
+# bawaan (cyan/yellow/green) secara otomatis.
+#
+# Format warna yang didukung:
+#   - Nama warna dasar: "black", "red", "green", "yellow", "blue",
+#     "magenta", "cyan", "gray"/"grey", "dark_gray"/"dark_grey",
+#     "light_red", "light_green", "light_yellow", "light_blue",
+#     "light_magenta", "light_cyan", "white"
+#   - Hex: "#ff5733" atau "ff5733"
+#   - RGB: "rgb(255, 87, 51)"
+
+border_active = "magenta"
+border_inactive = "dark_gray"
+title_active = "magenta"
+title_inactive = "dark_gray"
+text_normal = "white"
+text_highlight = "light_green"
+text_selected_bg = "magenta"
+text_selected_fg = "black"
+player_status_border = "light_yellow"
+player_status_title = "light_yellow"
+player_progress_fg = "magenta"
+player_progress_bg = "black"

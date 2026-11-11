@@ -1,5 +1,7 @@
 use crate::domain::SongInfo;
 use crate::tags::{is_audio_file, read_tags};
+use fuzzy_matcher::skim::SkimMatcherV2;
+use fuzzy_matcher::FuzzyMatcher;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 use std::fs::{self, File};
@@ -203,14 +205,17 @@ impl Library {
             return self.tracks.iter().collect();
         }
 
-        self.tracks
+        let matcher = SkimMatcherV2::default();
+        let mut scored_tracks: Vec<(i64, &LibraryTrack)> = self.tracks
             .iter()
-            .filter(|t| {
-                t.title.to_lowercase().contains(&q)
-                    || t.artist.to_lowercase().contains(&q)
-                    || t.album.to_lowercase().contains(&q)
+            .filter_map(|t| {
+                let text = format!("{} {} {}", t.artist, t.album, t.title);
+                matcher.fuzzy_match(&text, &q).map(|score| (score, t))
             })
-            .collect()
+            .collect();
+
+        scored_tracks.sort_by(|a, b| b.0.cmp(&a.0));
+        scored_tracks.into_iter().map(|(_, t)| t).collect()
     }
 }
 
@@ -259,5 +264,40 @@ mod tests {
         let search_results = lib.search("discovery");
         assert_eq!(search_results.len(), 1);
         assert_eq!(search_results[0].title, "One More Time");
+    }
+}
+
+#[cfg(test)]
+mod fuzzy_tests {
+    use super::*;
+
+    #[test]
+    fn test_fuzzy_search_typo_tolerance() {
+        let tracks = vec![
+            LibraryTrack {
+                path: PathBuf::from("/music/radiohead/okc/airbag.mp3"),
+                title: "Airbag".to_string(),
+                artist: "Radiohead".to_string(),
+                album: "OK Computer".to_string(),
+                duration_sec: Some(284),
+            },
+            LibraryTrack {
+                path: PathBuf::from("/music/daftpunk/discovery/one_more_time.mp3"),
+                title: "One More Time".to_string(),
+                artist: "Daft Punk".to_string(),
+                album: "Discovery".to_string(),
+                duration_sec: Some(320),
+            },
+        ];
+
+        let lib = Library {
+            music_dir: PathBuf::from("/music"),
+            tracks,
+        };
+
+        // Fuzzy: out-of-order, partial letters should still match via Skim algorithm
+        let results = lib.search("rdhead okc");
+        assert!(!results.is_empty());
+        assert_eq!(results[0].title, "Airbag");
     }
 }

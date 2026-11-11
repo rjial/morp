@@ -1,0 +1,7 @@
+[ar:Contoh Artis]
+[ti:Contoh Judul Lagu]
+[00:00.00]Taruh file ini di samping lagu Anda dengan nama yang sama
+[00:05.00]Contoh: jika lagu bernama "song.mp3"
+[00:10.00]maka file lirik harus bernama "song.lrc"
+[00:15.00]Tekan tombol L di TUI untuk menampilkan lirik tersinkron ini
+[00:20.00]Baris yang sedang diputar akan otomatis disorot dan di-scroll

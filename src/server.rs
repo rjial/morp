@@ -1,6 +1,11 @@
 use crate::audio::{AudioCommand, AudioEngine, AudioEvent};
 use crate::domain::{ClientRequest, PlaybackState, PlaybackStatus, ServerResponse};
 use crate::playlist::Playlist;
+use notify_rust::Notification;
+use souvlaki::{
+    MediaControlEvent, MediaMetadata, MediaPlayback, MediaPosition, PlatformConfig, MediaControls,
+    SeekDirection,
+};
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::{UnixListener, UnixStream};
@@ -70,6 +75,172 @@ impl Server {
         let audio = Arc::new(self.audio);
         let playlist = Arc::clone(&self.playlist);
         let event_receiver = self.event_receiver;
+
+        // Initialize MPRIS controls
+        let mpris_config = PlatformConfig {
+            dbus_name: "org.mpris.MediaPlayer2.mocp",
+            display_name: "MOCP Rust",
+            hwnd: None,
+        };
+        let mut controls = MediaControls::new(mpris_config).ok();
+
+        if let Some(ref mut c) = controls {
+            let audio_for_mpris = Arc::clone(&audio);
+            let playlist_for_mpris = Arc::clone(&playlist);
+            let _ = c.attach(move |event| {
+                match event {
+                    MediaControlEvent::Play => {
+                        let state = *audio_for_mpris.status.state.lock().unwrap();
+                        if state == PlaybackState::Pause {
+                            audio_for_mpris.send(AudioCommand::Resume);
+                        } else if state == PlaybackState::Stop {
+                            let mut pl = playlist_for_mpris.lock().unwrap();
+                            let current = pl.current_song().cloned().or_else(|| pl.next().cloned());
+                            if let Some(song) = current {
+                                audio_for_mpris.send(AudioCommand::Play(song.path));
+                            }
+                        }
+                    }
+                    MediaControlEvent::Pause => {
+                        audio_for_mpris.send(AudioCommand::Pause);
+                    }
+                    MediaControlEvent::Toggle => {
+                        let state = *audio_for_mpris.status.state.lock().unwrap();
+                        if state == PlaybackState::Play {
+                            audio_for_mpris.send(AudioCommand::Pause);
+                        } else if state == PlaybackState::Pause {
+                            audio_for_mpris.send(AudioCommand::Resume);
+                        } else {
+                            let mut pl = playlist_for_mpris.lock().unwrap();
+                            let current = pl.current_song().cloned().or_else(|| pl.next().cloned());
+                            if let Some(song) = current {
+                                audio_for_mpris.send(AudioCommand::Play(song.path));
+                            }
+                        }
+                    }
+                    MediaControlEvent::Stop => {
+                        audio_for_mpris.send(AudioCommand::Stop);
+                    }
+                    MediaControlEvent::Next => {
+                        let mut pl = playlist_for_mpris.lock().unwrap();
+                        if let Some(song) = pl.next() {
+                            let p = song.path.clone();
+                            audio_for_mpris.send(AudioCommand::Play(p));
+                        } else {
+                            audio_for_mpris.send(AudioCommand::Stop);
+                        }
+                    }
+                    MediaControlEvent::Previous => {
+                        let mut pl = playlist_for_mpris.lock().unwrap();
+                        if let Some(song) = pl.prev() {
+                            let p = song.path.clone();
+                            audio_for_mpris.send(AudioCommand::Play(p));
+                        }
+                    }
+                    MediaControlEvent::Seek(direction) => {
+                        let delta = match direction {
+                            SeekDirection::Forward => 5,
+                            SeekDirection::Backward => -5,
+                        };
+                        audio_for_mpris.send(AudioCommand::Seek(delta));
+                    }
+                    MediaControlEvent::SeekBy(direction, duration) => {
+                        let secs = duration.as_secs() as i64;
+                        let delta = match direction {
+                            SeekDirection::Forward => secs,
+                            SeekDirection::Backward => -secs,
+                        };
+                        audio_for_mpris.send(AudioCommand::Seek(delta));
+                    }
+                    MediaControlEvent::SetPosition(position) => {
+                        audio_for_mpris.send(AudioCommand::Jump(position.0.as_secs()));
+                    }
+                    _ => {}
+                }
+            });
+        }
+
+        let controls = Arc::new(Mutex::new(controls));
+
+        // Start background observer for MPRIS updates and Notifications
+        let audio_for_obs = Arc::clone(&audio);
+        let playlist_for_obs = Arc::clone(&playlist);
+        let controls_for_obs = Arc::clone(&controls);
+        thread::spawn(move || {
+            let mut last_state = PlaybackState::Stop;
+            let mut last_path = PathBuf::new();
+
+            loop {
+                thread::sleep(Duration::from_millis(250));
+
+                let current_state = *audio_for_obs.status.state.lock().unwrap();
+                let current_sec = audio_for_obs.status.current_sec.load(Ordering::SeqCst);
+                let total_sec = audio_for_obs.status.total_sec.load(Ordering::SeqCst);
+
+                let (current_path, current_title, current_artist, current_album, song_duration) = {
+                    let pl = playlist_for_obs.lock().unwrap();
+                    if let Some(song) = pl.current_song() {
+                        (
+                            song.path.clone(),
+                            song.title.clone(),
+                            song.artist.clone(),
+                            song.album.clone(),
+                            song.duration_sec,
+                        )
+                    } else {
+                        (PathBuf::new(), String::new(), String::new(), String::new(), None)
+                    }
+                };
+
+                let mut guard = controls_for_obs.lock().unwrap();
+                if let Some(ref mut c) = *guard {
+                    // 1. Update metadata if track changed
+                    if current_path != last_path {
+                        if !current_path.as_os_str().is_empty() {
+                            let metadata = MediaMetadata {
+                                title: Some(&current_title),
+                                artist: if current_artist.is_empty() { None } else { Some(&current_artist) },
+                                album: if current_album.is_empty() { None } else { Some(&current_album) },
+                                duration: song_duration.map(Duration::from_secs).or_else(|| {
+                                    if total_sec > 0 { Some(Duration::from_secs(total_sec)) } else { None }
+                                }),
+                                cover_url: None,
+                            };
+                            let _ = c.set_metadata(metadata);
+
+                            let body = if !current_artist.is_empty() {
+                                format!("{} - {}", current_artist, current_title)
+                            } else {
+                                current_title.clone()
+                            };
+                            let _ = Notification::new()
+                                .summary("Now Playing")
+                                .body(&body)
+                                .icon("audio-x-generic")
+                                .show();
+                        } else {
+                            let _ = c.set_metadata(MediaMetadata::default());
+                        }
+                        last_path = current_path.clone();
+                    }
+
+                    // 2. Update Playback state
+                    if current_state != last_state || current_path != last_path {
+                        let mpris_pos = Some(MediaPosition(Duration::from_secs(current_sec)));
+                        let playback_state = match current_state {
+                            PlaybackState::Play => MediaPlayback::Playing { progress: mpris_pos },
+                            PlaybackState::Pause => MediaPlayback::Paused { progress: mpris_pos },
+                            PlaybackState::Stop => MediaPlayback::Stopped,
+                        };
+                        let _ = c.set_playback(playback_state);
+                        last_state = current_state;
+                    } else if current_state == PlaybackState::Play {
+                        let mpris_pos = Some(MediaPosition(Duration::from_secs(current_sec)));
+                        let _ = c.set_playback(MediaPlayback::Playing { progress: mpris_pos });
+                    }
+                }
+            }
+        });
 
         // Background thread to handle TrackFinished events
         let audio_for_events = Arc::clone(&audio);
