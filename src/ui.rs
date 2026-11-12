@@ -214,12 +214,12 @@ impl App {
     }
 
     pub fn rescan_library(&mut self) {
-        self.set_message(&t!("msg.rescanning").to_string());
+        self.set_message(&t!("msg.rescanning"));
         self.library = Library::scan(&self.library.music_dir);
         let _ = self.library.save_cache();
         self.init_library_data();
         let count = self.library.tracks.len();
-        self.set_message(&t!("msg.scan_complete", count = count).to_string());
+        self.set_message(&t!("msg.scan_complete", count = count));
     }
 
     pub fn refresh_dir(&mut self) {
@@ -263,8 +263,8 @@ impl App {
                 }
             }
 
-            dirs.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
-            files.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+            dirs.sort_by_key(|e| e.name.to_lowercase());
+            files.sort_by_key(|e| e.name.to_lowercase());
 
             entries.extend(dirs);
             entries.extend(files);
@@ -398,7 +398,7 @@ impl App {
             (_, KeyCode::Char('L')) => {
                 self.show_lyrics = !self.show_lyrics;
                 if self.show_lyrics && self.lyrics.lines.is_empty() {
-                    self.set_message(&t!("msg.no_lyrics").to_string());
+                    self.set_message(&t!("msg.no_lyrics"));
                 }
             }
             // Tab handling
@@ -535,7 +535,7 @@ impl App {
                             let _ = self.client.clear();
                             let _ = self.client.append(paths);
                             let _ = self.client.play();
-                            self.set_message(&t!("msg.playing_tracks").to_string());
+                            self.set_message(&t!("msg.playing_tracks"));
                             self.refresh_playlist();
                             self.refresh_status();
                         }
@@ -567,14 +567,14 @@ impl App {
                         let paths: Vec<PathBuf> = self.library_tracks.iter().map(|t| t.path.clone()).collect();
                         let count = paths.len();
                         let _ = self.client.append(paths);
-                        self.set_message(&t!("msg.added_tracks", count = count).to_string());
+                        self.set_message(&t!("msg.added_tracks", count = count));
                         self.refresh_playlist();
                     }
                     LibraryFocus::Tracks => {
                         if let Some(idx) = self.track_state.selected() {
                             if let Some(track) = self.library_tracks.get(idx) {
                                 let _ = self.client.append(vec![track.path.clone()]);
-                                self.set_message(&t!("msg.added", name = track.title.clone()).to_string());
+                                self.set_message(&t!("msg.added", name = track.title.clone()));
                                 self.refresh_playlist();
                             }
                         }
@@ -585,7 +585,7 @@ impl App {
                         if let Some(entry) = self.dir_entries.get(idx) {
                             if !entry.is_parent {
                                 let _ = self.client.append(vec![entry.path.clone()]);
-                                self.set_message(&t!("msg.added", name = entry.name.clone()).to_string());
+                                self.set_message(&t!("msg.added", name = entry.name.clone()));
                                 self.refresh_playlist();
                             }
                         }
@@ -607,7 +607,7 @@ impl App {
             }
             (_, KeyCode::Char('C')) => {
                 let _ = self.client.clear();
-                self.set_message(&t!("msg.cleared").to_string());
+                self.set_message(&t!("msg.cleared"));
                 self.refresh_playlist();
                 self.refresh_status();
             }
@@ -780,7 +780,7 @@ impl App {
                 let path = track.path.clone();
                 let title = track.title.clone();
                 let _ = self.client.play_path(path);
-                self.set_message(&t!("msg.playing", title = title).to_string());
+                self.set_message(&t!("msg.playing", title = title));
                 self.refresh_playlist();
                 self.refresh_status();
             }
@@ -803,8 +803,8 @@ impl App {
             return;
         }
         let sel = match self.artist_state.selected() {
-            Some(i) => if i + 1 < self.artists.len() { i + 1 } else { 0 },
-            None => 0,
+            Some(i) if i + 1 < self.artists.len() => i + 1,
+            _ => 0,
         };
         self.artist_state.select(Some(sel));
     }
@@ -825,8 +825,8 @@ impl App {
             return;
         }
         let sel = match self.album_state.selected() {
-            Some(i) => if i + 1 < self.albums.len() { i + 1 } else { 0 },
-            None => 0,
+            Some(i) if i + 1 < self.albums.len() => i + 1,
+            _ => 0,
         };
         self.album_state.select(Some(sel));
     }
@@ -847,8 +847,8 @@ impl App {
             return;
         }
         let sel = match self.track_state.selected() {
-            Some(i) => if i + 1 < self.library_tracks.len() { i + 1 } else { 0 },
-            None => 0,
+            Some(i) if i + 1 < self.library_tracks.len() => i + 1,
+            _ => 0,
         };
         self.track_state.select(Some(sel));
     }
@@ -869,8 +869,8 @@ impl App {
             return;
         }
         let sel = match self.dir_state.selected() {
-            Some(i) => if i + 1 < self.dir_entries.len() { i + 1 } else { 0 },
-            None => 0,
+            Some(i) if i + 1 < self.dir_entries.len() => i + 1,
+            _ => 0,
         };
         self.dir_state.select(Some(sel));
     }
@@ -891,8 +891,8 @@ impl App {
             return;
         }
         let sel = match self.playlist_state.selected() {
-            Some(i) => if i + 1 < self.playlist_items.len() { i + 1 } else { 0 },
-            None => 0,
+            Some(i) if i + 1 < self.playlist_items.len() => i + 1,
+            _ => 0,
         };
         self.playlist_state.select(Some(sel));
     }

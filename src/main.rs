@@ -188,12 +188,12 @@ fn handle_cli_commands(args: CliArgs) -> Result<(), String> {
     // Volume
     if let Some(vol_str) = args.volume {
         let s = vol_str.trim();
-        if s.starts_with('+') {
-            if let Ok(delta) = s[1..].parse::<i32>() {
+        if let Some(rest) = s.strip_prefix('+') {
+            if let Ok(delta) = rest.parse::<i32>() {
                 client.adjust_volume(delta)?;
             }
-        } else if s.starts_with('-') {
-            if let Ok(delta) = s[1..].parse::<i32>() {
+        } else if let Some(rest) = s.strip_prefix('-') {
+            if let Ok(delta) = rest.parse::<i32>() {
                 client.adjust_volume(-delta)?;
             }
         } else if let Ok(level) = s.parse::<u32>() {
@@ -270,7 +270,7 @@ fn print_info(status: &domain::PlaybackStatus) {
 
     let cur_sec = status.current_sec;
     let tot_sec = status.total_sec.unwrap_or(0);
-    let left_sec = if tot_sec >= cur_sec { tot_sec - cur_sec } else { 0 };
+    let left_sec = tot_sec.saturating_sub(cur_sec);
 
     let total_time_str = if tot_sec > 0 {
         format!("{:02}:{:02}", tot_sec / 60, tot_sec % 60)
@@ -291,14 +291,14 @@ fn print_info(status: &domain::PlaybackStatus) {
         .as_ref()
         .and_then(|f| f.bitrate_kbps)
         .map(|b| format!("{}kbps", b))
-        .unwrap_or_else(|| "".to_string());
+        .unwrap_or_default();
 
     let rate_str = status
         .current_file
         .as_ref()
         .and_then(|f| f.sample_rate)
         .map(|r| format!("{}kHz", r / 1000))
-        .unwrap_or_else(|| "".to_string());
+        .unwrap_or_default();
 
     println!("File: {}", file_path);
     println!("Title: {}", title);
@@ -348,7 +348,7 @@ fn print_formatted(status: &domain::PlaybackStatus, fmt: &str) {
 
     let cur_sec = status.current_sec;
     let tot_sec = status.total_sec.unwrap_or(0);
-    let left_sec = if tot_sec >= cur_sec { tot_sec - cur_sec } else { 0 };
+    let left_sec = tot_sec.saturating_sub(cur_sec);
 
     let total_time_str = if tot_sec > 0 {
         format!("{:02}:{:02}", tot_sec / 60, tot_sec % 60)

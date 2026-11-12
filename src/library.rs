@@ -214,7 +214,7 @@ impl Library {
             })
             .collect();
 
-        scored_tracks.sort_by(|a, b| b.0.cmp(&a.0));
+        scored_tracks.sort_by_key(|t| std::cmp::Reverse(t.0));
         scored_tracks.into_iter().map(|(_, t)| t).collect()
     }
 }

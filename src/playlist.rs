@@ -275,7 +275,7 @@ impl Playlist {
         };
 
         let reader = BufReader::new(file);
-        for line in reader.lines().filter_map(|l| l.ok()) {
+        for line in reader.lines().map_while(Result::ok) {
             let line = line.trim();
             if line.is_empty() || line.starts_with('#') {
                 continue;
